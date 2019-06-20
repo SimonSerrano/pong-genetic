@@ -1,9 +1,7 @@
-from keras.models import Model
-from keras.layers import Dense, Input, Concatenate, Lambda
-from keras.optimizers import RMSprop
 import random
 import cv2
 import numpy as np
+import math
 
 
 class NeuralNetwork():
@@ -16,20 +14,11 @@ class NeuralNetwork():
 
 
     def create_baby(self):
-        inputTensor = Input(self.input_shape)
-        connect = random.randint(0,4)
-        edge = Lambda(lambda x: x[:, connect:connect+1])(inputTensor)
-        outputTensor = Dense(1, activation='relu', 
-            kernel_initializer='random_uniform')(edge)
-        self.model = Model(inputTensor, outputTensor)
-        self.model.compile(loss='mse',
-                      optimizer=RMSprop(),
-                      metrics=['accuracy'])
-        self.model.summary()
+        
         
         
 
-    def detect_props(self, state):
+    def detect_props(self, state, last_bp):
         
         def remove_background(state):
             state[state == 144] = 0
@@ -62,10 +51,31 @@ class NeuralNetwork():
                 tl, tr, bl, br = corners[0], corners[1], corners[2], corners[3]
                 return ((br[0,0]+tl[0,0])/2, (br[0,1]+tl[0,1])/2)
 
+        def ball_velocity(last_bp, bp):
+            bv = 0
+            if bp is not None and last_bp is not None:
+                bv = math.sqrt(math.pow(bp[0]-last_bp[0],2)+math.pow(bp[1]-last_bp[1], 2))
+            return bv
+
+        def enemy_position(state):
+            state = state[:, 16:17]
+            top, bottom = None, None
+            for i in range(160):
+                if state[i][0][0] == 213 and top is None:
+                    top = i
+                elif (state[i][0][0] == 0 or i == 159) and top is not None:
+                    bottom = i-1
+                    break
+            position = (top+bottom)/2
+            return position
+
+
         state = crop(state)
         state = remove_background(state)
         pp = paddle_position(state)
         bp = ball_position(state)
+        bv = ball_velocity(last_bp, bp)
+        return bp, pp, bv, ep
     
         
            
